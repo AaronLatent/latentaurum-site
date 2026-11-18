@@ -1,0 +1,42 @@
+# Publishes the site folder to GitHub Pages every time you push to main.
+# The check runs first: if it finds a problem, nothing is published and the site stays as it was.
+name: Publish the site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Get the files
+        uses: actions/checkout@v6
+
+      - name: Check the site
+        run: bash tools/check-site.sh
+
+      - name: Set up Pages
+        uses: actions/configure-pages@v6
+
+      - name: Package the site folder
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+      - name: Publish
+        id: deployment
+        uses: actions/deploy-pages@v5
