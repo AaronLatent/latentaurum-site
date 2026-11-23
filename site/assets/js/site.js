@@ -1,8 +1,14 @@
-/* Latent Aurum website (s28).
-   One setting to change before launch: the email address below.
-   If you change it, change the fallback address in index.html and legal.html as well (it is
-   written into the pages so the buttons still work with JavaScript switched off). */
-window.LA = { email: 'info@latentaurum.com' };
+/* Latent Aurum website (s33).
+   The email address below: if you change it, change the fallback address in index.html, contact.html and
+   legal.html as well (it is written into the pages so the buttons still work with JavaScript switched off).
+   The contact form sends through EmailJS (emailjs.com) using the three EmailJS settings below. They are
+   meant to be public. template is the email to info@latentaurum.com; in EmailJS its Auto-Reply tab is
+   linked to template_ihk3wns, the "we have your message" email to the visitor, so one send does both.
+   While the template ID or the public key is empty, Send opens the visitor's own email app instead. */
+window.LA = {
+  email: 'info@latentaurum.com',
+  emailjs: { service: 'service_nloah9l', template: 'template_vpp6w0m', publicKey: '' }
+};
 
 (() => {
   'use strict';
@@ -103,25 +109,79 @@ window.LA = { email: 'info@latentaurum.com' };
     if (img.complete) { if (img.naturalWidth) ok(); } else img.addEventListener('load', ok);
   });
 
-  /* The contact form. Nothing is sent from the website: Send opens the visitor's own email app with the
-     message written out to us, under the subject "Website: Collaboration from (their name)", and they send
-     it from there. If no email app opens, the message under the button gives our address to write to.
+  /* The contact form. With EmailJS set up (see the top of this file), Send delivers the message straight to
+     our inbox through EmailJS, under the subject "Website: Collaboration from (their name)", with Reply-To
+     set to the visitor, and a thank-you takes the form's place. If it cannot send, the message under the
+     button says so and gives our address. Without EmailJS set up, or with JavaScript switched off, Send
+     opens the visitor's own email app with the message written out instead. A hidden field that people
+     never see catches simple spam robots: if it is filled in, nothing is sent.
      A link to contact.html?topic=collaboration (or query, or opportunity) opens it with that topic chosen. */
   const form = $('#talkForm');
   if (form) {
-    const msg = $('#talkMsg'), topic = $('#f-topic');
+    const msg = $('#talkMsg'), topic = $('#f-topic'), send = $('#talkSend');
+    const ej = LA.emailjs || {};
+    const live = !!(ej.service && ej.template && ej.publicKey);
     const want = (new URLSearchParams(location.search).get('topic') || '').toLowerCase();
     if (want) [...topic.options].forEach(o => { if (o.value && o.value.toLowerCase() === want) topic.value = o.value; });
     form.addEventListener('invalid', () => form.classList.add('tried'), true);
-    form.addEventListener('submit', e => {
+    const say = (text, linkHref) => {
+      msg.textContent = text;
+      if (linkHref) {
+        const a = document.createElement('a'); a.href = linkHref; a.textContent = LA.email;
+        msg.append(a, '.');
+      }
+    };
+    const thanks = email => {
+      const box = document.createElement('div');
+      box.className = 'talk-done'; box.tabIndex = -1;
+      const h = document.createElement('h2'); h.textContent = 'Thank you.';
+      const p = document.createElement('p');
+      p.textContent = email ? 'Your message is with us. We will reply to ' + email + '.' : 'Your message is with us.';
+      box.append(h, p);
+      form.hidden = true; form.after(box);
+      box.focus({ preventScroll: true }); box.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
+    };
+    let busy = false;
+    form.addEventListener('submit', async e => {
       e.preventDefault();
-      const v = name => (form.elements[name].value || '').trim();
+      if (busy) return;
+      const v = name => ((form.elements[name] && form.elements[name].value) || '').trim();
       const subject = 'Website: ' + v('topic') + ' from ' + v('name');
       const lines = ['Name: ' + v('name'), 'Email: ' + v('email')];
       if (v('organisation')) lines.push('Company: ' + v('organisation'));
       lines.push('About: ' + v('topic'), '', v('message'));
-      location.href = 'mailto:' + LA.email + '?subject=' + enc(subject) + '&body=' + enc(lines.join('\n'));
-      msg.innerHTML = 'Your email app should open with your message written out. Press Send there.<br>If nothing opens, write to us at <a href="mailto:' + LA.email + '?subject=' + enc(subject) + '">' + LA.email + '</a>.';
+      const mailto = 'mailto:' + LA.email + '?subject=' + enc(subject) + '&body=' + enc(lines.join('\n'));
+      if (v('website')) { thanks(); return; }            // the hidden field: a robot filled it in
+      if (!live) {
+        location.href = mailto;
+        say('Your email app should open with your message written out. Press Send there. If nothing opens, write to us at ', 'mailto:' + LA.email + '?subject=' + enc(subject));
+        return;
+      }
+      busy = true; send.disabled = true; say('Sending…');
+      try {
+        const r = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            service_id: ej.service, template_id: ej.template, user_id: ej.publicKey,
+            /* the same details under the names EmailJS's ready-made templates use too (title, name, email,
+               message, time), so either kind of template fills in */
+            template_params: {
+              subject, topic: v('topic'), title: v('topic'), name: v('name'), email: v('email'),
+              from_name: v('name'), reply_to: v('email'),
+              organisation: v('organisation') || '(none given)', message: v('message'),
+              time: new Date().toLocaleString('en-GB', { timeZone: 'Europe/London', dateStyle: 'long', timeStyle: 'short' }) + ' (UK time)'
+            }
+          })
+        });
+        if (!r.ok) throw r.status;
+        thanks(v('email'));
+      } catch (status) {
+        busy = false; send.disabled = false;
+        say(status === 429
+          ? 'Too many messages at once. Please wait a minute and press Send again, or write to us at '
+          : 'Sorry, your message did not send. Please press Send again, or write to us at ', mailto);
+      }
     });
   }
 

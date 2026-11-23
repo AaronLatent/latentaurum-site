@@ -21,8 +21,12 @@ done
 grep -q 'info@latentaurum.com' "$SITE/index.html" 2>/dev/null || stop "The contact email is missing from index.html."
 grep -l 'REPLACE-WITH-LIVE-URL' "$SITE"/*.html >/dev/null 2>&1 && stop "A placeholder web address is still in a page."
 
-# The contact form sends nothing itself: it opens the visitor's email app, addressed to us.
-grep -q 'action="mailto:info@latentaurum.com"' "$SITE/contact.html" 2>/dev/null || stop "The contact form in contact.html no longer opens an email to info@latentaurum.com."
+# The contact form sends through EmailJS (settings at the top of site.js). With JavaScript switched off it opens
+# the visitor's email app instead, addressed to us, so that fallback has to stay.
+grep -q 'action="mailto:info@latentaurum.com"' "$SITE/contact.html" 2>/dev/null || stop "The contact form in contact.html no longer opens an email to info@latentaurum.com when JavaScript is off."
+grep -q "service: 'service_" "$SITE/assets/js/site.js" 2>/dev/null || stop "The EmailJS service ID is missing from the top of site.js."
+grep -q -E "(template|publicKey): ''" "$SITE/assets/js/site.js" 2>/dev/null \
+  && note "EmailJS is not finished: the template ID or public key at the top of site.js is empty, so the contact form opens the visitor's email app for now. This does not stop the publish."
 
 # The privacy and legal page has to be finished and checked before the site goes live.
 grep -q 'draft-note' "$SITE/legal.html" 2>/dev/null && stop 'legal.html has a "Draft for review" box. Delete it before publishing.'
