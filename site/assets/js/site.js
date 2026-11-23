@@ -7,7 +7,7 @@
    While the template ID or the public key is empty, Send opens the visitor's own email app instead. */
 window.LA = {
   email: 'info@latentaurum.com',
-  emailjs: { service: 'service_nloah9l', template: 'template_vpp6w0m', publicKey: '' }
+  emailjs: { service: 'service_nloah9l', template: 'template_vpp6w0m', publicKey: 'DHHwZl4Or4gU5Nv8S' }
 };
 
 (() => {
