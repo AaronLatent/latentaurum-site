@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="color-scheme" content="dark">
+<title>Latent Aurum | Film</title>
+<style>
+html,body{height:100%;margin:0;background:#000;color:#A39B8E;font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+iframe{display:block;width:100%;height:100%;border:0}
+p{position:absolute;inset:0;margin:0;display:grid;place-content:center;gap:6px;padding:24px;text-align:center}
+p[hidden]{display:none}
+a{color:#CFA65E}
+</style>
+</head>
+<body>
+<p id="none" hidden>Nothing to play here. <a href="/">Go to latentaurum.com</a></p>
+<script>
+/* Plays one of our films from YouTube inside another of our pages; it only works inside a frame, never on its own.
+   YouTube plays a film inside a page only when it is told which website the page is on. A page opened as a file on a
+   computer cannot tell it, so such a page shows this one, and this one asks YouTube on behalf of latentaurum.com. */
+(() => {
+  'use strict';
+  const id = new URLSearchParams(location.search).get('v') || '';
+  const ours = ['file://', 'null', location.origin, 'https://www.latentaurum.com', 'https://latentaurum.com', 'https://aaronlatent.github.io'];
+  const anc = location.ancestorOrigins ? [...location.ancestorOrigins] : [];
+  const framed = window.top !== window;
+  if (!/^[\w-]{11}$/.test(id) || !framed || !anc.every(o => ours.includes(o))) {
+    document.getElementById('none').hidden = false;
+    return;
+  }
+  const f = document.createElement('iframe');
+  f.title = 'Film, on YouTube';
+  f.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+  f.allowFullscreen = true;
+  f.referrerPolicy = 'strict-origin-when-cross-origin';
+  f.src = 'https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1&rel=0&playsinline=1';
+  document.body.appendChild(f);
+})();
+</script>
+</body>
+</html>
